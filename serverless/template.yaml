@@ -1,0 +1,57 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  AWS CloudWatch Log Retention Auto-Enforcer.
+  EventBridge rule catches CreateLogGroup events and invokes Lambda to enforce retention policies.
+
+Parameters:
+  DefaultRetentionDays:
+    Type: Number
+    Default: 14
+    AllowedValues: [1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1095, 1827, 2192, 2557, 2922, 3288, 3653]
+    Description: Default retention in days applied to any newly created log group.
+
+  ExcludePrefixes:
+    Type: String
+    Default: '/aws/cloudtrail,/security/audit'
+    Description: Comma-separated list of log group prefixes exempt from automated retention.
+
+Resources:
+  LogRetentionEnforcerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: cloudwatch-log-retention-enforcer
+      Handler: handler.lambda_handler
+      Runtime: python3.12
+      Timeout: 30
+      MemorySize: 128
+      Environment:
+        Variables:
+          DEFAULT_RETENTION_DAYS: !Ref DefaultRetentionDays
+          EXCLUDE_PREFIXES: !Ref ExcludePrefixes
+      Events:
+        CreateLogGroupEvent:
+          Type: CloudWatchEvent
+          Properties:
+            Pattern:
+              source:
+                - aws.logs
+              detail-type:
+                - AWS API Call via CloudTrail
+              detail:
+                eventSource:
+                  - logs.amazonaws.com
+                eventName:
+                  - CreateLogGroup
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - logs:PutRetentionPolicy
+                - logs:DescribeLogGroups
+              Resource: '*'
+
+Outputs:
+  FunctionArn:
+    Description: Lambda Function ARN enforcing CloudWatch retention
+    Value: !GetAtt LogRetentionEnforcerFunction.Arn

@@ -1,0 +1,52 @@
+# AWS Log Retention Manager - Configuration Example
+# Define custom retention policies per environment, service prefix, or account.
+
+version: "1.0"
+
+# Default fallback retention in days if no prefix rule matches
+# Allowed tiers: 1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1095, 1827, 2192, 2557, 2922, 3288, 3653
+default_retention_days: 14
+
+# Safe mode: If true, never applies changes without explicit confirmation
+dry_run: true
+
+# Target AWS Regions
+regions:
+  - ap-south-1
+  - us-east-1
+
+# Policy rules by prefix (evaluated in order)
+policies:
+  # Ephemeral / High-volume Lambda functions
+  - prefix: "/aws/lambda/"
+    retention_days: 7
+    description: "Lambda execution logs"
+
+  # Container workloads (ECS / Fargate / EKS)
+  - prefix: "/ecs/"
+    retention_days: 14
+    description: "ECS container application logs"
+
+  - prefix: "/aws/eks/"
+    retention_days: 30
+    description: "EKS cluster and control plane logs"
+
+  # API Gateways
+  - prefix: "/aws/api-gateway/"
+    retention_days: 14
+    description: "API Gateway access and execution logs"
+
+  # Build & CI/CD Pipelines
+  - prefix: "/aws/codebuild/"
+    retention_days: 7
+    description: "Ephemeral CodeBuild project execution logs"
+
+  # Compliance / Audit / VPC Flow Logs (Keep longer or stream to S3)
+  - prefix: "/aws/vpc/flow-logs"
+    retention_days: 90
+    description: "Network security VPC Flow Logs"
+
+# Exclusions: Log groups that should NEVER be modified or trimmed
+exclude_prefixes:
+  - "/aws/cloudtrail"
+  - "/security/audit"
